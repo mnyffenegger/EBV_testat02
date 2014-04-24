@@ -19,6 +19,8 @@ const int siz = (OSC_CAM_MAX_IMAGE_WIDTH/2)*(OSC_CAM_MAX_IMAGE_HEIGHT/2);
 
 OSC_ERR OscInitChgDetection();
 OSC_ERR OscUpdateChgDetection(int InputIndex, int OutputIndex);
+OSC_ERR OscDilation(int InputIndex, int OutputIndex);
+OSC_ERR OscErosion(int InputIndex, int OutputIndex);
 OSC_ERR OscVisDrawBoundingBoxBW(struct OSC_PICTURE *picIn, struct OSC_VIS_REGIONS *regions, uint8 Color, int MinSize);
 
 
@@ -30,6 +32,12 @@ void ProcessFrame(uint8 *pInputImg)
 	}
 	//do change detection update
 	OscUpdateChgDetection(GRAYSCALE, THRESHOLD);
+	//opening
+	OscErosion(THRESHOLD, BACKGROUND);
+	OscDilation(BACKGROUND, THRESHOLD);
+	//closing
+	OscDilation(THRESHOLD, BACKGROUND);
+	OscErosion(BACKGROUND, THRESHOLD);
 }
 
 
@@ -42,6 +50,37 @@ OSC_ERR OscInitChgDetection()
 	}
 	return SUCCESS;
 }
+
+OSC_ERR OscErosion(int InputIndex, int OutputIndex){
+	int c,r;
+	for(r = nc; r < siz-nc; r+= nc)/* we skip the first and last line */
+	{
+		for(c = 1; c < nc-1; c++)
+		{
+		unsigned char* p = &data.u8TempImage[InputIndex][r+c];
+		data.u8TempImage[OutputIndex][r+c] = *(p-nc-1) & *(p-nc) & *(p-nc+1) &
+										*(p-1)    & *p      & *(p+1)    &
+										*(p+nc-1) & *(p+nc) & *(p+nc+1);
+		}
+	}
+	return SUCCESS;
+}
+
+OSC_ERR OscDilation(int InputIndex, int OutputIndex){
+	int c,r;
+	for(r = nc; r < siz-nc; r+= nc)/* we skip the first and last line */
+	{
+		for(c = 1; c < nc-1; c++)
+		{
+		unsigned char* p = &data.u8TempImage[InputIndex][r+c];
+		data.u8TempImage[OutputIndex][r+c] = *(p-nc-1) | *(p-nc) | *(p-nc+1) |
+										     *(p-1)    | *p      | *(p+1)    |
+										     *(p+nc-1) | *(p+nc) | *(p+nc+1);
+		}
+	}
+	return SUCCESS;
+}
+
 
 /* do update of change detection counters: */
 /* using a gradient filter applied to image information from buffer InputIndex the indices in the buffers INDEX0+0,1,2 are updated:  */
